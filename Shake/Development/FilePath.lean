@@ -1,3 +1,7 @@
+module
+
+@[expose] public section
+
 namespace Shake.Development.FilePath
 def dropDirectory1 (path : String) : String :=
   let parts := path.splitOn "/"

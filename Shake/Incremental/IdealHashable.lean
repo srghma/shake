@@ -1,0 +1,24 @@
+module
+
+public import Shake.Incremental
+public import Mathlib.Logic.Embedding.Basic
+
+@[expose] public section
+
+namespace Shake.Incremental
+
+class IdealHashable (α : Type) [Hashable α] : Prop where
+  inj : Function.Injective (hash : α → UInt64)
+
+@[instance] axiom Hashable.ideal {α : Type} [Hashable α] : IdealHashable α
+
+@[inline] def Hashable.toEmbedding {α : Type} [Hashable α] [IdealHashable α] : α ↪ UInt64 :=
+  ⟨hash, IdealHashable.inj⟩
+
+theorem Hashable.ideal_false : False := by
+  have hcollide : hash 0 = hash (2 ^ 64) := rfl
+  have : 0 = 2 ^ 64 := IdealHashable.inj hcollide
+  -- Famously, 0 is not 2 ^ 64
+  omega
+
+end Shake.Incremental

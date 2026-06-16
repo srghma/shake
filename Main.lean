@@ -1,5 +1,10 @@
-import Shake.Development
-import Lean
+module
+
+public import Shake.Development
+public import Lean
+
+@[expose] public section
+
 open Shake.Development
 def main (args : List String) : IO Unit := do
   match args with

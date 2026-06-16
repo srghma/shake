@@ -1,11 +1,13 @@
 module
 
-import Mathlib.Logic.Function.Basic
-import Std.Data.DHashMap
-import Std.Data.HashMap
-import Std.Data.HashSet
+public import Mathlib.Logic.Function.Basic
+public import Std.Data.DHashMap
+public import Std.Data.HashMap
+public import Std.Data.HashSet
 
-namespace Incremental
+@[expose] public section
+
+namespace Shake.Incremental
 
 open Std (DHashMap HashMap HashSet)
 
@@ -25,11 +27,11 @@ structure BuildConfig : Type 1 where
   rel : Q → Q → Prop
   wf : WellFounded rel
 
-structure QueryDep (ℭ : BuildConfig) (q₀ : ℭ.Q) where
-  q : ℭ.Q
-  rel : ℭ.rel q q₀
+structure QueryDep (ℭ : BuildConfig) (q₀ : BuildConfig.Q ℭ) where
+  q : BuildConfig.Q ℭ
+  rel : BuildConfig.rel ℭ q q₀
 
-structure QueryDepHash (ℭ : BuildConfig) (q₀ : ℭ.Q) (H : Type)
+structure QueryDepHash (ℭ : BuildConfig) (q₀ : BuildConfig.Q ℭ) (H : Type)
     extends QueryDep ℭ q₀ where
   hash : H
 
@@ -53,23 +55,23 @@ structure MonadAction (κ₁ κ₂ : Type → Type) [Monad κ₁] [Monad κ₂] 
     (∀ a b, R a b → rel S (ka a) (kb b)) →
     rel S (ma >>= ka) (mb >>= kb)
 
-structure Task (ℭ : BuildConfig) (q₀ : ℭ.Q) (α : Type) : Type 1 where
+structure Task (ℭ : BuildConfig) (q₀ : BuildConfig.Q ℭ) (α : Type) : Type 1 where
   fn : ∀ (f : Type → Type) [Monad f],
-    (∀ i, f (ℭ.V i)) →
-    (∀ q, ℭ.rel q q₀ → f (ℭ.R q)) →
+    (∀ i, f (BuildConfig.V ℭ i)) →
+    (∀ q, BuildConfig.rel ℭ q q₀ → f (BuildConfig.R ℭ q)) →
     f α
   param {κ₁ κ₂ : Type → Type} [Monad κ₁] [Monad κ₂]
     (A : MonadAction κ₁ κ₂)
-    {ι₁ : ∀ i, κ₁ (ℭ.V i)} {ι₂ : ∀ i, κ₂ (ℭ.V i)}
-    (f₁ : ∀ q, ℭ.rel q q₀ → κ₁ (ℭ.R q))
-    (f₂ : ∀ q, ℭ.rel q q₀ → κ₂ (ℭ.R q)) :
+    {ι₁ : ∀ i, κ₁ (BuildConfig.V ℭ i)} {ι₂ : ∀ i, κ₂ (BuildConfig.V ℭ i)}
+    (f₁ : ∀ q, BuildConfig.rel ℭ q q₀ → κ₁ (BuildConfig.R ℭ q))
+    (f₂ : ∀ q, BuildConfig.rel ℭ q q₀ → κ₂ (BuildConfig.R ℭ q)) :
     (∀ i, A.rel Eq (ι₁ i) (ι₂ i)) →
     (∀ q hq, A.rel Eq (f₁ q hq) (f₂ q hq)) →
     A.rel Eq (fn κ₁ ι₁ f₁) (fn κ₂ ι₂ f₂)
 
 namespace Task
 
-variable {ℭ : BuildConfig} {q₀ : ℭ.Q}
+variable {ℭ : BuildConfig} {q₀ : BuildConfig.Q ℭ}
 
 @[inline] def pure {α : Type} (a : α) : Task ℭ q₀ α where
   fn _ [_] _ _ := Pure.pure a
@@ -86,18 +88,18 @@ instance : Monad (Task ℭ q₀) where
   pure := pure
   bind := bind
 
-@[inline] def input (i : ℭ.I) : Task ℭ q₀ (ℭ.V i) where
+@[inline] def input (i : BuildConfig.I ℭ) : Task ℭ q₀ (BuildConfig.V ℭ i) where
   fn := fun _ [_] inp _ => inp i
   param _ _ _ _ _ hι _ := hι i
 
-@[inline] def fetch (q : ℭ.Q) (h : ℭ.rel q q₀) : Task ℭ q₀ (ℭ.R q) where
+@[inline] def fetch (q : BuildConfig.Q ℭ) (h : BuildConfig.rel ℭ q q₀) : Task ℭ q₀ (BuildConfig.R ℭ q) where
   fn := fun _ [_] _ fe => fe q h
   param _ _ _ _ _ _ hfe := hfe q h
 
-instance instCoeFun {ℭ : BuildConfig} {q₀ : ℭ.Q} {α : Type} :
+instance instCoeFun {ℭ : BuildConfig} {q₀ : BuildConfig.Q ℭ} {α : Type} :
     CoeFun (Task ℭ q₀ α)
       (fun _ => ∀ (f : Type → Type) [Monad f],
-        (∀ i, f (ℭ.V i)) → (∀ q, ℭ.rel q q₀ → f (ℭ.R q)) → f α) :=
+        (∀ i, f (BuildConfig.V ℭ i)) → (∀ q, BuildConfig.rel ℭ q q₀ → f (BuildConfig.R ℭ q)) → f α) :=
   ⟨Task.fn⟩
 
 end Task
@@ -105,36 +107,36 @@ end Task
 export Task (input fetch)
 
 class Input (ℭ : BuildConfig) (J : Type) where
-  get : J → ∀ i, ℭ.V i
-  set : J → ∀ i, ℭ.V i → J
+  get : J → ∀ i, BuildConfig.V ℭ i
+  set : J → ∀ i, BuildConfig.V ℭ i → J
   get_set_self : ∀ j i v, get (set j i v) i = v
   get_set_other : ∀ j i v i', i' ≠ i → get (set j i v) i' = get j i'
 
-instance {ℭ : BuildConfig} [DecidableEq ℭ.I] : Input ℭ (∀ i, ℭ.V i) where
+instance {ℭ : BuildConfig} [DecidableEq (BuildConfig.I ℭ)] : Input ℭ (∀ i, BuildConfig.V ℭ i) where
   get := id
   set := Function.update
   get_set_self _ _ _ := Function.update_self ..
   get_set_other _ _ _ _ h := Function.update_of_ne h ..
 
 def Tasks (ℭ : BuildConfig) : Type 1 :=
-  ∀ q₀, Task ℭ q₀ (ℭ.R q₀)
+  ∀ q₀, Task ℭ q₀ (BuildConfig.R ℭ q₀)
 
 def compute {ℭ : BuildConfig} (tasks : Tasks ℭ)
-    (ι : ∀ i, ℭ.V i) (q : ℭ.Q) : ℭ.R q :=
+    (ι : ∀ i, BuildConfig.V ℭ i) (q : BuildConfig.Q ℭ) : BuildConfig.R ℭ q :=
   (tasks q).fn Id ι (fun q' _ => compute tasks ι q')
-termination_by ℭ.wf.wrap q
+termination_by BuildConfig.wf ℭ |>.wrap q
 
 structure Value {ℭ : BuildConfig}
-    (tasks : Tasks ℭ) (ι : ∀ i, ℭ.V i) (q : ℭ.Q) where
-  val : ℭ.R q
+    (tasks : Tasks ℭ) (ι : ∀ i, BuildConfig.V ℭ i) (q : BuildConfig.Q ℭ) where
+  val : BuildConfig.R ℭ q
   spec : val = compute tasks ι q
 
 structure Build (ℭ : BuildConfig) (J : Type) [Input ℭ J] (tasks : Tasks ℭ)
     (n m : Type → Type) : Type 1 where
   σ : Type
   init : J → σ
-  inputs : σ → ∀ i, ℭ.V i
-  set : ∀ i, ℭ.V i → StateM σ Unit
+  inputs : σ → ∀ i, BuildConfig.V ℭ i
+  set : ∀ i, BuildConfig.V ℭ i → StateM σ Unit
   build : ∀ q store, n (m (Value tasks (inputs store) q) × σ)
 
 def Build.run
@@ -142,20 +144,20 @@ def Build.run
     {J : Type} [Input ℭ J]
     {tasks : Tasks ℭ}
     {n m : Type → Type} [Functor n] [Functor m]
-    (b : Build ℭ J tasks n m) (q : ℭ.Q) : StateT b.σ n (m (ℭ.R q)) :=
+    (b : Build ℭ J tasks n m) (q : BuildConfig.Q ℭ) : StateT b.σ n (m (BuildConfig.R ℭ q)) :=
   fun store => Prod.map (Value.val <$> ·) id <$> b.build q store
 
 theorem Tasks.freeTheorem {ℭ : BuildConfig}
     {κ : Type → Type} [Monad κ]
-    (tasks : Tasks ℭ) (q₀ : ℭ.Q)
+    (tasks : Tasks ℭ) (q₀ : BuildConfig.Q ℭ)
     (F : MonadAction κ Id)
-    (ι₀ : ∀ i, ℭ.V i)
-    (ι₁ : ∀ i, κ (ℭ.V i))
-    (fetch₁ : ∀ q, ℭ.rel q q₀ → κ (ℭ.R q))
+    (ι₀ : ∀ i, BuildConfig.V ℭ i)
+    (ι₁ : ∀ i, κ (BuildConfig.V ℭ i))
+    (fetch₁ : ∀ q, BuildConfig.rel ℭ q q₀ → κ (BuildConfig.R ℭ q))
     (hι : ∀ i, F.rel Eq (ι₁ i) (ι₀ i))
     (hfetch : ∀ q hq, F.rel Eq (fetch₁ q hq) (compute tasks ι₀ q)) :
     F.rel Eq ((tasks q₀).fn κ ι₁ fetch₁) (compute tasks ι₀ q₀) := by
   conv => rhs; unfold compute
   exact (tasks q₀).param F fetch₁ _ hι hfetch
 
-end Incremental
+end Shake.Incremental

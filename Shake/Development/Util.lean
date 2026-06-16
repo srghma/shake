@@ -1,4 +1,9 @@
-import Shake.Development.FilePath
+module
+
+public import Shake.Development.FilePath
+
+@[expose] public section
+
 namespace Shake.Development.Util
 def parseMakefile (contents : String) : List (String × List String) :=
   let lines := contents.splitOn "\n"
