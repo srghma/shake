@@ -1,17 +1,22 @@
+/-
+Copyright (c) 2024 Jules. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Jules
+-/
 module
 
 @[expose] public section
 
+/-!
+# Binary serialization and deserialization for Lean 4.
+-/
+
 namespace Shake.Internal.Core
 
 /-- Binary type class for serialization. -/
-class Binary (α : Type) where
+public class Binary (α : Type) where
   put : α → ByteArray
   get : ByteArray → Option (α × ByteArray)
-
-instance : Binary String where
-  put s := s.toUTF8
-  get b := some (String.fromUTF8! b, ByteArray.empty)
 
 instance : Binary UInt64 where
   put n :=
@@ -27,19 +32,36 @@ instance : Binary UInt64 where
   get b :=
     if b.size < 8 then none
     else
-      let n := b[0]!.toUInt64 ||| (b[1]!.toUInt64 <<< 8) |||
-               (b[2]!.toUInt64 <<< 16) ||| (b[3]!.toUInt64 <<< 24) |||
-               (b[4]!.toUInt64 <<< 32) ||| (b[5]!.toUInt64 <<< 40) |||
-               (b[6]!.toUInt64 <<< 48) ||| (b[7]!.toUInt64 <<< 56)
+      let b0 := b.data.getD 0 0 |>.toUInt64
+      let b1 := b.data.getD 1 0 |>.toUInt64
+      let b2 := b.data.getD 2 0 |>.toUInt64
+      let b3 := b.data.getD 3 0 |>.toUInt64
+      let b4 := b.data.getD 4 0 |>.toUInt64
+      let b5 := b.data.getD 5 0 |>.toUInt64
+      let b6 := b.data.getD 6 0 |>.toUInt64
+      let b7 := b.data.getD 7 0 |>.toUInt64
+      let n := b0 ||| (b1 <<< 8) ||| (b2 <<< 16) ||| (b3 <<< 24) |||
+               (b4 <<< 32) ||| (b5 <<< 40) ||| (b6 <<< 48) ||| (b7 <<< 56)
       some (n, ByteArray.mk (b.data.extract 8 b.size))
 
 instance : Binary ByteArray where
   put b := Binary.put b.size.toUInt64 ++ b
   get b := match Binary.get (α := UInt64) b with
     | some (n, rest) =>
-      if rest.size < n.toNat then none
-      else some (ByteArray.mk (rest.data.extract 0 n.toNat),
-                 ByteArray.mk (rest.data.extract n.toNat rest.size))
+      let nNat := n.toNat
+      if rest.size < nNat then none
+      else some (ByteArray.mk (rest.data.extract 0 nNat),
+                 ByteArray.mk (rest.data.extract nNat rest.size))
+    | none => none
+
+instance : Binary String where
+  put s := Binary.put s.toUTF8
+  get b :=
+    match Binary.get (α := ByteArray) b with
+    | some (bytes, rest) =>
+      match String.fromUTF8? bytes with
+      | some s => some (s, rest)
+      | none => none
     | none => none
 
 instance [Binary α] : Binary (List α) where
@@ -67,3 +89,5 @@ instance [Binary α] [Binary β] : Binary (α × β) where
     | none => none
 
 end Shake.Internal.Core
+
+end

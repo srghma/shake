@@ -1,18 +1,15 @@
 name = "lean-shake"
 version = "0.1.0"
 defaultTargets = ["Shake"]
-testDriver = "ShakeTests"
+testDriver = "ShakeTestsExe"
 lintDriver = "batteries/runLinter"
 
 [leanOptions]
 weak.linter.mathlibStandardSet = true
 weak.linter.flexible = true
-# The next three linters are provided by Mathlib, but don't work here.
-# This should be fixed, see discussion at https://leanprover.zulipchat.com/#narrow/channel/113488-general/topic/weak.2Elinter.2EmathlibStandardSet.20and.20lint-style-action/with/544726745
 weak.linter.pythonStyle = false
 weak.linter.checkInitImports = false
 weak.linter.allScriptsDocumented = false
-# this is currently not extensible for unicode not used in Mathlib
 weak.linter.unicodeLinter = false
 
 [[require]]
@@ -24,10 +21,10 @@ rev = "v4.31.0"
 name = "Shake"
 globs = ["Shake.*"]
 
-[[lean_lib]]
-name = "ShakeTests"
-globs = ["ShakeTests.+"]
-moreLeanArgs = ["-Dweak.linter.style.header=false"]
+[[lean_exe]]
+name = "ShakeTestsExe"
+root = "ShakeTests"
+supportInterpreter = true
 
 [[lean_exe]]
 name = "lshake"

@@ -1,7 +1,16 @@
+/-
+Copyright (c) 2024 Jules. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Jules
+-/
 module
 
 public import Shake.Development
 public import Shake.Incremental
+
+/-!
+# Command execution DSL for Shake.
+-/
 
 @[expose] public section
 
@@ -24,3 +33,5 @@ public def produces (file : String) : Action Unit := do
   set { s with outputs := s.outputs ++ [file] }
 
 end Shake.Development
+
+end

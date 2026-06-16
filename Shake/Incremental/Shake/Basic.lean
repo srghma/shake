@@ -1,28 +1,39 @@
+/-
+Copyright (c) 2024 Jules. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Jules
+-/
 module
 
 public import Shake.Incremental.Basic
+public import Shake.Incremental.IdealHashable
+public import Shake.Incremental.MonadCancel
 public import Shake.Incremental.Store
-public import Std.Data.DHashMap
+
+/-!
+# Shake incremental build runner.
+-/
+
+@[expose] public section
 
 namespace Shake.Incremental
 
-variable {ℭ : BuildConfig} {J : Type} [Input ℭ J] [BEq ℭ.I] [Hashable ℭ.I]
-  [∀ i, Hashable (ℭ.V i)] [BEq ℭ.Q] [Hashable ℭ.Q] [∀ q, Hashable (ℭ.R q)]
+open Shake.Incremental
 
-instance : Inhabited (Tasks ℭ → (q : ℭ.Q) → ShakeRT.Store ℭ J → ℭ.R q × ShakeRT.Store ℭ J) where
-  default tasks q s := ⟨compute tasks (Input.get s.inputs) q, s⟩
+variable {ℭ : BuildConfig} {J : Type} [Input ℭ J] (tasks : Tasks ℭ)
+variable [BEq ℭ.Q] [Hashable ℭ.Q] [BEq ℭ.I] [Hashable ℭ.I]
+variable [∀ i, Hashable (ℭ.V i)] [∀ i, IdealHashable (ℭ.V i)]
+variable [∀ q, Hashable (ℭ.R q)] [∀ q, IdealHashable (ℭ.R q)]
 
-@[extern "lean_shake_build"]
-public opaque shakeCBuild {ℭ : BuildConfig} [BEq ℭ.I] [Hashable ℭ.I] [∀ i, Hashable (ℭ.V i)] [BEq ℭ.Q] [Hashable ℭ.Q] [∀ q, Hashable (ℭ.R q)] {J : Type} [Input ℭ J] : Tasks ℭ → (q : ℭ.Q) → ShakeRT.Store ℭ J → ℭ.R q × ShakeRT.Store ℭ J
+public abbrev Shake (ℭ : BuildConfig) (J : Type) [BEq ℭ.Q] [Hashable ℭ.Q]
+    [BEq ℭ.I] [Hashable ℭ.I] :=
+  StateT (Store ℭ J) IO
 
-set_option warn.sorry false in
-@[expose] public def ShakeC (tasks : Tasks ℭ) : Build ℭ J tasks Id Id where
-  σ := ShakeRT.Store ℭ J
-  init inputs := { inputs := inputs, memos := {} }
-  inputs store := Input.get store.inputs
-  set i v := modify fun store => { store with inputs := Input.set store.inputs i v }
-  build q store :=
-    let (r, s) := shakeCBuild tasks q store
-    (⟨r, sorry⟩, s)
+public def runShake {ℭ : BuildConfig} {J : Type} [BEq ℭ.Q] [Hashable ℭ.Q]
+    [BEq ℭ.I] [Hashable ℭ.I] (inputs : J) (m : Shake ℭ J α) :
+    IO (α × Store ℭ J) :=
+  m.run ⟨inputs, {}⟩
 
 end Shake.Incremental
+
+end

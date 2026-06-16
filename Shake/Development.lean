@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2024 Jules. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Jules
+-/
 module
 
 public import Shake.Development.FilePath
@@ -47,19 +52,22 @@ public def phony (name : String) (action : Action Unit) : Rules Unit := do
   let m ← get
   set (m.insert name (fun _ => action))
 
-public def phis (pattern : String) (action : String -> Action Unit) : Rules Unit := do
+public def phis (pattern : String) (action : String -> Action Unit) :
+    Rules Unit := do
   let m ← get
   set (m.insert pattern action)
 
 infixr:60 " %> " => phis
 
-public def phisList (patterns : List String) (action : String -> Action Unit) : Rules Unit := do
+public def phisList (patterns : List String) (action : String -> Action Unit) :
+    Rules Unit := do
   for pattern in patterns do
     phis pattern action
 
 infixr:60 " |%> " => phisList
 
-public def phisMulti (patterns : List String) (action : List String -> Action Unit) : Rules Unit := do
+public def phisMulti (patterns : List String) (action : List String -> Action Unit) :
+    Rules Unit := do
   for pattern in patterns do
     phis pattern (fun out => action [out])
 
@@ -110,3 +118,5 @@ public def shakeArgs (_opts : ShakeOptions) (rules : Rules Unit) : IO Unit := do
   pure ()
 
 end Shake.Development
+
+end
