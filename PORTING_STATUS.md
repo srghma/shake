@@ -2,21 +2,21 @@
 
 Files are topologically sorted by dependency order (independent first).
 
-- [ ] src/Paths.hs
-- [ ] src/Development/Ninja/Env.hs
-- [ ] src/Development/Ninja/Type.hs
-- [ ] src/Development/Ninja/Lexer.hs
+- [x] src/Paths.hs
+- [x] src/Development/Ninja/Env.hs
+- [x] src/Development/Ninja/Type.hs
+- [x] src/Development/Ninja/Lexer.hs
 - [x] src/Development/Shake/FilePath.hs
-- [ ] src/Development/Shake/Classes.hs
-- [ ] src/General/Intern.hs
+- [x] src/Development/Shake/Classes.hs
+- [x] src/General/Intern.hs
 - [x] src/General/Binary.hs
 - [ ] src/Development/Shake/Internal/FileName.hs
 - [ ] src/Development/Shake/Internal/CmdOption.hs
 - [ ] src/Development/Shake/Internal/History/Bloom.hs
 - [ ] src/Development/Shake/Internal/History/Network.hs
 - [ ] src/Development/Shake/Internal/History/Types.hs
-- [ ] src/General/Cleanup.hs
-- [ ] src/General/Extra.hs
+- [x] src/General/Cleanup.hs
+- [x] src/General/Extra.hs
 - [ ] src/General/FileLock.hs
 - [ ] src/Development/Shake/Internal/Errors.hs
 - [ ] src/Development/Shake/Internal/FileInfo.hs
@@ -33,7 +33,7 @@ Files are topologically sorted by dependency order (independent first).
 - [ ] src/General/Chunks.hs
 - [ ] src/General/Timing.hs
 - [ ] src/General/Pool.hs
-- [ ] src/Development/Ninja/Parse.hs
+- [x] src/Development/Ninja/Parse.hs
 - [ ] src/General/EscCodes.hs
 - [ ] src/General/GetOpt.hs
 - [ ] src/General/Bilist.hs
