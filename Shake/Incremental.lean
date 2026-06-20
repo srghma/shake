@@ -1,23 +1,34 @@
+/-
+Copyright (c) 2024 Jules. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Jules
+-/
 module
 
-import Mathlib.Logic.Function.Basic
-import Std.Data.DHashMap
-import Std.Data.HashMap
-import Std.Data.HashSet
+public import Mathlib.Logic.Function.Basic
+public import Std.Data.DHashMap
+public import Std.Data.HashMap
+public import Std.Data.HashSet
 
-namespace Incremental
+/-!
+# Core incremental build logic for Shake.
+-/
+
+@[expose] public section
+
+namespace Shake.Incremental
 
 open Std (DHashMap HashMap HashSet)
 
 universe u v
 
-abbrev Const (α : Type u) (_ : Type v) : Type u := α
+public abbrev Const (α : Type u) (_ : Type v) : Type u := α
 
 instance {α : Type u} : Applicative (Const (List α)) where
   pure _ := []
   seq f x := f ++ x ()
 
-structure BuildConfig : Type 1 where
+public structure BuildConfig : Type 1 where
   I : Type
   V : I → Type
   Q : Type
@@ -25,21 +36,21 @@ structure BuildConfig : Type 1 where
   rel : Q → Q → Prop
   wf : WellFounded rel
 
-structure QueryDep (ℭ : BuildConfig) (q₀ : ℭ.Q) where
+public structure QueryDep (ℭ : BuildConfig) (q₀ : ℭ.Q) where
   q : ℭ.Q
   rel : ℭ.rel q q₀
 
-structure QueryDepHash (ℭ : BuildConfig) (q₀ : ℭ.Q) (H : Type)
+public structure QueryDepHash (ℭ : BuildConfig) (q₀ : ℭ.Q) (H : Type)
     extends QueryDep ℭ q₀ where
   hash : H
 
-structure InputDep (I : Type) where
+public structure InputDep (I : Type) where
   key : I
 
-structure InputDepHash (I H : Type) extends InputDep I where
+public structure InputDepHash (I H : Type) extends InputDep I where
   hash : H
 
-structure MonadAction (κ₁ κ₂ : Type → Type) [Monad κ₁] [Monad κ₂] where
+public structure MonadAction (κ₁ κ₂ : Type → Type) [Monad κ₁] [Monad κ₂] where
   rel {α β : Type} :
     (α → β → Prop) →
     (κ₁ α → κ₂ β → Prop)
@@ -53,7 +64,7 @@ structure MonadAction (κ₁ κ₂ : Type → Type) [Monad κ₁] [Monad κ₂] 
     (∀ a b, R a b → rel S (ka a) (kb b)) →
     rel S (ma >>= ka) (mb >>= kb)
 
-structure Task (ℭ : BuildConfig) (q₀ : ℭ.Q) (α : Type) : Type 1 where
+public structure Task (ℭ : BuildConfig) (q₀ : ℭ.Q) (α : Type) : Type 1 where
   fn : ∀ (f : Type → Type) [Monad f],
     (∀ i, f (ℭ.V i)) →
     (∀ q, ℭ.rel q q₀ → f (ℭ.R q)) →
@@ -71,11 +82,11 @@ namespace Task
 
 variable {ℭ : BuildConfig} {q₀ : ℭ.Q}
 
-@[inline] def pure {α : Type} (a : α) : Task ℭ q₀ α where
+@[inline] public def pure {α : Type} (a : α) : Task ℭ q₀ α where
   fn _ [_] _ _ := Pure.pure a
   param A _ _ _ _ _ _ := A.rel_pure rfl
 
-@[inline] def bind {α β : Type} (m : Task ℭ q₀ α) (k : α → Task ℭ q₀ β) :
+@[inline] public def bind {α β : Type} (m : Task ℭ q₀ α) (k : α → Task ℭ q₀ β) :
     Task ℭ q₀ β where
   fn := fun g [_] inp fe => m.fn g inp fe >>= fun a => (k a).fn g inp fe
   param A _ _ f₁ f₂ hι hfe :=
@@ -86,11 +97,12 @@ instance : Monad (Task ℭ q₀) where
   pure := pure
   bind := bind
 
-@[inline] def input (i : ℭ.I) : Task ℭ q₀ (ℭ.V i) where
+@[inline] public def input (i : ℭ.I) : Task ℭ q₀ (ℭ.V i) where
   fn := fun _ [_] inp _ => inp i
   param _ _ _ _ _ hι _ := hι i
 
-@[inline] def fetch (q : ℭ.Q) (h : ℭ.rel q q₀) : Task ℭ q₀ (ℭ.R q) where
+@[inline] public def fetch (q : ℭ.Q) (h : ℭ.rel q q₀) :
+    Task ℭ q₀ (ℭ.R q) where
   fn := fun _ [_] _ fe => fe q h
   param _ _ _ _ _ _ hfe := hfe q h
 
@@ -104,7 +116,7 @@ end Task
 
 export Task (input fetch)
 
-class Input (ℭ : BuildConfig) (J : Type) where
+public class Input (ℭ : BuildConfig) (J : Type) where
   get : J → ∀ i, ℭ.V i
   set : J → ∀ i, ℭ.V i → J
   get_set_self : ∀ j i v, get (set j i v) i = v
@@ -116,20 +128,20 @@ instance {ℭ : BuildConfig} [DecidableEq ℭ.I] : Input ℭ (∀ i, ℭ.V i) wh
   get_set_self _ _ _ := Function.update_self ..
   get_set_other _ _ _ _ h := Function.update_of_ne h ..
 
-def Tasks (ℭ : BuildConfig) : Type 1 :=
+public abbrev Tasks (ℭ : BuildConfig) : Type 1 :=
   ∀ q₀, Task ℭ q₀ (ℭ.R q₀)
 
-def compute {ℭ : BuildConfig} (tasks : Tasks ℭ)
+public def compute {ℭ : BuildConfig} (tasks : Tasks ℭ)
     (ι : ∀ i, ℭ.V i) (q : ℭ.Q) : ℭ.R q :=
   (tasks q).fn Id ι (fun q' _ => compute tasks ι q')
-termination_by ℭ.wf.wrap q
+termination_by ℭ.wf |>.wrap q
 
-structure Value {ℭ : BuildConfig}
+public structure Value {ℭ : BuildConfig}
     (tasks : Tasks ℭ) (ι : ∀ i, ℭ.V i) (q : ℭ.Q) where
   val : ℭ.R q
   spec : val = compute tasks ι q
 
-structure Build (ℭ : BuildConfig) (J : Type) [Input ℭ J] (tasks : Tasks ℭ)
+public structure Build (ℭ : BuildConfig) (J : Type) [Input ℭ J] (tasks : Tasks ℭ)
     (n m : Type → Type) : Type 1 where
   σ : Type
   init : J → σ
@@ -137,7 +149,7 @@ structure Build (ℭ : BuildConfig) (J : Type) [Input ℭ J] (tasks : Tasks ℭ)
   set : ∀ i, ℭ.V i → StateM σ Unit
   build : ∀ q store, n (m (Value tasks (inputs store) q) × σ)
 
-def Build.run
+public def Build.run
     {ℭ : BuildConfig}
     {J : Type} [Input ℭ J]
     {tasks : Tasks ℭ}
@@ -145,7 +157,7 @@ def Build.run
     (b : Build ℭ J tasks n m) (q : ℭ.Q) : StateT b.σ n (m (ℭ.R q)) :=
   fun store => Prod.map (Value.val <$> ·) id <$> b.build q store
 
-theorem Tasks.freeTheorem {ℭ : BuildConfig}
+public theorem Tasks.freeTheorem {ℭ : BuildConfig}
     {κ : Type → Type} [Monad κ]
     (tasks : Tasks ℭ) (q₀ : ℭ.Q)
     (F : MonadAction κ Id)
@@ -158,4 +170,6 @@ theorem Tasks.freeTheorem {ℭ : BuildConfig}
   conv => rhs; unfold compute
   exact (tasks q₀).param F fetch₁ _ hι hfetch
 
-end Incremental
+end Shake.Incremental
+
+end

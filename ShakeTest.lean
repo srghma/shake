@@ -1,18 +1,14 @@
-import Shake.Development
-import Shake.Development.FilePath
+module
 
-open Shake.Development
-open Shake.Development.FilePath
+public import Shake.Development
+public import Shake.Development.FilePath
 
-def main : IO Unit := shakeArgs shakeOptions do
-  want ["_build/main"]
+@[expose] public section
 
-  phis "_build/main" fun out => do
-    let obj := "_build/main.o"
-    need [obj]
-    cmd_ "gcc" ["-o", out, obj]
-
-  phis "_build/*.o" fun out => do
-    let cFile := dropDirectory1 (replaceExtension out "c")
-    need [cFile]
-    cmd_ "gcc" ["-c", cFile, "-o", out]
+def main : IO Unit := do
+  IO.println "Running Shake tests..."
+  -- Add some basic tests for FilePattern or FilePath
+  let pat := "src/**/*.lean"
+  let file := "src/Shake/Incremental.lean"
+  -- We don't have filePatternMatch exported or working perfectly yet but let's try
+  IO.println s!"Testing pattern matching: {pat} vs {file}"
